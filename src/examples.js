@@ -258,39 +258,41 @@ const bot = new telegramBot(token, { polling: true });
 let originalMessage = {};
 let walletAddresses = [];
 
-//wallet settings
-bot.on("callback_query", (callbackQuery) => {
-  const chatId = callbackQuery.message.chat.id;
-  const messageId = callbackQuery.message.message_id;
-  const data = callbackQuery.data;
 
- if (data === "wallets") {
-    const opts = {
-      chat_id: chatId,
-      message_id: messageId,
-      reply_markup: JSON.stringify({
-        inline_keyboard: [
-          [
-            { text: "ETH", callback_data: "eth" },
-            { text: "BSC", callback_data: "bsc" },
-          ],
-        ],
-      }),
-    };
+bot.on("message", (message) => {
+  let chatid = message.from.id;
+  if (
+    message.text.toString().toLocaleLowerCase() === "hi" ||
+    message.text.toString().toLocaleLowerCase() === "hey" ||
+    message.text.toString().toLocaleLowerCase() === "hello"
+  ) {
+    bot.sendMessage(chatid, "Hello dear user");
+  }
+});
 
-    bot.editMessageText("Select target chain:", opts);
-  } else if (data === "return") {
-    const previousData = originalMessage[messageId];
-    const opts = {
-      chat_id: chatId,
-      message_id: messageId,
-      reply_markup: previousData.reply_markup,
-      text: previousData.text,
-    };
-    bot.editMessageText(previousData.text, opts);
-  } 
+bot.onText(/\/greet/, (msg) => {
+  bot.sendMessage(msg.chat.id, "Welcome");
+});
+bot.onText(/\/sniper/, (msg) => {
+  bot.sendMessage(
+    msg.chat.id,
+    "This is tradesmart bot. Here's a manual. Follow us on twitter. Make sure u follow these channels."
+  );
+  const opts = {
+    reply_markup: JSON.stringify({
+      inline_keyboard: [
+        [{ text: "Wallets", callback_data: "wallets" }],
+        [{ text: "Call channels", callback_data: "channels" }],
+        [{ text: "Copytrade", callback_data: "copytrade" }],
+        [{ text: "snipe presales", callback_data: "snipe_presale" }],
+        [{ text: "dhjbdjh", callback_data: "autobuyBSC" }],
+        [{ text: "snipe presales", callback_data: "autobuyETH" }],
+      ],
+    }),
+  };
 
-})
+  bot.sendMessage(msg.chat.id, "WHat would u like to do today", opts);
+});
 
 //to create a wallet
 bot.on("callback_query", (callbackQuery) => {
@@ -320,6 +322,21 @@ bot.on("callback_query", (callbackQuery) => {
     };
 
     bot.editMessageText("Add a wallet", opts);
+  } else if (data === "wallets") {
+    const opts = {
+      chat_id: chatId,
+      message_id: messageId,
+      reply_markup: JSON.stringify({
+        inline_keyboard: [
+          [
+            { text: "ETH", callback_data: "eth" },
+            { text: "BSC", callback_data: "bsc" },
+          ],
+        ],
+      }),
+    };
+
+    bot.editMessageText("Select target chain:", opts);
   } else if (data === "create_wallet") {
     const wallet = ethers.Wallet.createRandom();
     const privateKey = wallet.privateKey;
@@ -335,16 +352,7 @@ bot.on("callback_query", (callbackQuery) => {
   } else if (data === "import_wallet") {
     // handling import_wallet
     bot.sendMessage(chatId, "Import an existing wallet");
-  }
-});
-
-// Call channels and settings
-bot.on("callback_query", (callbackQuery) => {
-  const chatId = callbackQuery.message.chat.id;
-  const messageId = callbackQuery.message.message_id;
-  const data = callbackQuery.data;
-
-  if (data === "channels") {
+  } else if (data === "channels") {
     const opts = {
       chat_id: chatId,
       message_id: messageId,
@@ -357,6 +365,11 @@ bot.on("callback_query", (callbackQuery) => {
         ],
       }),
     };
+    //  // Update the original message content
+    //  originalMessage[messageId] = {
+    //   text: "Select target chain:",
+    //   reply_markup: opts.reply_markup,
+    // };
     bot.editMessageText("Select channels:", opts);
   } else if (data === "mechannel" || data === "catchannel") {
     const channelId = data;
@@ -422,42 +435,16 @@ bot.on("callback_query", (callbackQuery) => {
         },
       }
     );
-  }
-});
-
-bot.on("message", (message) => {
-  let chatid = message.from.id;
-  if (
-    message.text.toString().toLocaleLowerCase() === "hi" ||
-    message.text.toString().toLocaleLowerCase() === "hey" ||
-    message.text.toString().toLocaleLowerCase() === "hello"
-  ) {
-    bot.sendMessage(chatid, "Hello dear user");
-  }
-});
-
-bot.onText(/\/greet/, (msg) => {
-  bot.sendMessage(msg.chat.id, "Welcome");
-});
-bot.onText(/\/sniper/, (msg) => {
-  bot.sendMessage(
-    msg.chat.id,
-    "This is tradesmart bot. Here's a manual. Follow us on twitter. Make sure u follow these channels."
-  );
-  const opts = {
-    reply_markup: JSON.stringify({
-      inline_keyboard: [
-        [{ text: "Wallets", callback_data: "wallets" }],
-        [{ text: "Call channels", callback_data: "channels" }],
-        [{ text: "Copytrade", callback_data: "copytrade" }],
-        [{ text: "snipe presales", callback_data: "snipe_presale" }],
-        [{ text: "dhjbdjh", callback_data: "autobuyBSC" }],
-        [{ text: "snipe presales", callback_data: "autobuyETH" }],
-      ],
-    }),
-  };
-
-  bot.sendMessage(msg.chat.id, "WHat would u like to do today", opts);
+  } else if (data === "return") {
+    const previousData = originalMessage[messageId];
+    const opts = {
+      chat_id: chatId,
+      message_id: messageId,
+      reply_markup: previousData.reply_markup,
+      text: previousData.text,
+    };
+    bot.editMessageText(previousData.text, opts);
+  } 
 });
 
 //shows currenies to check price
@@ -536,7 +523,7 @@ bot.on("message", async (message) => {
     const contractInfo = await getContractInfo(contractAddress);
 
     if (contractInfo) {
-      const replyMessage = `Contract Information:\n\nName: ${contractInfo.name}\nSymbol: ${contractInfo.symbol}\nDecimals: ${contractInfo.decimals}\nTotal Supply: ${contractInfo.totalSupply}\nUniswap V2 Pair Address: ${contractInfo.uniswapV2PairAddress}\nChain: ${contractInfo.chain}`;
+      const replyMessage = `Contract Information:\n\nName: ${contractInfo.name}\nSymbol: ${contractInfo.symbol}\nDecimals: ${contractInfo.decimals}\nTotal Supply: ${contractInfo.totalSupply}\nLP: ${contractInfo.uniswapV2PairAddress}\nChain: ${contractInfo.chain}`;
       bot.sendMessage(chatId, replyMessage);
     } else {
       bot.sendMessage(chatId, "Failed to retrieve contract information.");
