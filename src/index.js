@@ -1130,8 +1130,8 @@ bot.on("callback_query", (callbackQuery) => {
     bot.sendMessage(chatId, "Select target chain:", opts);
     //bot.editMessageText("Select target chain:", opts);
   } else if (data === "yourwallets") {
-    const walletButtons = walletAddresses.map((wallet) => ({
-      text: wallet.address,
+    const walletButtons = walletAddresses.map((wallet, index) => ({
+      text: walletNames[index],
       callback_data: `wallet_address:${wallet.address}`,
     }));
   
@@ -1143,6 +1143,31 @@ bot.on("callback_query", (callbackQuery) => {
     };
   
     bot.sendMessage(chatId, "Your Wallets:", opts);
+  
+  }else if (data.includes("wallet_address:")) {
+    const walletAddress = data.split(":")[1];
+    const walletIndex = walletAddresses.findIndex(
+      (wallet) => wallet.address === walletAddress
+    );
+  
+    if (walletIndex !== -1) {
+      const settingsButtons = [
+        { text: "Change Name", callback_data: `change_name:${walletAddress}` },
+        { text: "Change Password", callback_data: `change_password:${walletAddress}` },
+        { text: "Export Private Key", callback_data: `export_private_key:${walletAddress}` },
+        { text: "Delete Wallet", callback_data: `delete_wallet:${walletAddress}` },
+        { text: "Back", callback_data: "yourwallets" },
+      ];
+  
+      const opts = {
+        chat_id: chatId,
+        reply_markup: JSON.stringify({
+          inline_keyboard: [settingsButtons],
+        }),
+      };
+  
+      bot.sendMessage(chatId, "Wallet Settings:", opts);
+    }
   } else if (data === "create_wallet") {
     if (walletAddresses.length >= 3) {
       // If the maximum limit of addresses is reached
