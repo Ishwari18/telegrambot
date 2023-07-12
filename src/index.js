@@ -1134,34 +1134,31 @@ bot.on("callback_query", (callbackQuery) => {
       chat_id: chatId,
       message_id: messageId,
     };
-  
+    
     bot.sendMessage(chatId, "Please enter the private key to import the wallet:", opts);
   
-    // Register a new text message handler to capture the private key
-    bot.on("text", (message) => {
+    // Register a new message handler to capture the private key
+    bot.once("message", async (message) => {
       const privateKey = message.text;
-  
+
       try {
         if (!privateKey) {
           throw new Error("Invalid private key");
         }
-  
-        const wallet = new ethers.Wallet(privateKey, provider);
+
+        const wallet = new ethers.Wallet(privateKey);
         const address = wallet.address;
-  
+
         const newWallet = { chatId, address }; // Create a new wallet object
         walletAddresses.push(newWallet);
-  
+
         // Send a success message with the imported wallet address
         bot.sendMessage(chatId, `Wallet imported successfully. Address: ${address}`);
-  
+
       } catch (error) {
         // Send an error message if importing the wallet fails
         bot.sendMessage(chatId, "Error importing wallet. Please make sure to provide a valid private key.");
       }
-  
-      // Remove the text message handler to prevent capturing other messages
-      bot.removeEvent("text");
     });
   }else if (data === "yourwallets") {
     const walletButtons = walletAddresses.map((wallet, index) => ({
@@ -1227,18 +1224,15 @@ bot.on("callback_query", (callbackQuery) => {
       // Prompt the user to enter a new name for the wallet
       bot.sendMessage(chatId, "Please enter the new name for the wallet:", opts);
 
-      // Register a new text message handler to capture the new name
-      bot.on("text", (message) => {
+      // Register a new message handler to capture the new name
+      bot.once("message", async (message) => {
         const newName = message.text;
 
-        // Save the new name in the walletNames array at the respective index
+        // Update the name in the walletNames array
         walletNames[walletIndex] = newName;
 
-        // Send a confirmation message
+        // Send a success message with the updated wallet name
         bot.sendMessage(chatId, `Wallet name has been updated to: ${newName}`);
-
-        // Remove the text message handler to prevent capturing other messages
-        bot.removeEvent("text");
       });
     } 
   } else if (data === "create_wallet") {
