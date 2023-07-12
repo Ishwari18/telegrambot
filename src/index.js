@@ -1048,13 +1048,16 @@ const provider = new ethers.providers.JsonRpcProvider(
 );
 //const provider = ethers.getDefaultProvider();
 let walletAddresses = [];
+let walletNames = ["Main", "Demo 1", "Demo 2"]; // Array of wallet names
+let toggleBuySell = false; // Initialize toggleBuySell to false
 // Global settings object
+let copytradewallets = [];
 const globalSettings = {
   autoBuy: false, // Default state: Auto Buy is disabled
   autoSell: false,
   maxMC: null, // Default state: Max MC value is not set
-  minLiquidity : null,// Default state:  value is not set
-  maxLiquidity:null,
+  minLiquidity: null, // Default state:  value is not set
+  maxLiquidity: null,
   maxBuytax: null,
   maxSelltax: null,
   SellHigh: null,
@@ -1114,10 +1117,11 @@ bot.on("callback_query", (callbackQuery) => {
       reply_markup: JSON.stringify({
         inline_keyboard: [
           [
-            { text: "ETH", callback_data: "eth" },
-            { text: "BSC", callback_data: "bsc" },
+            { text: "Create", callback_data: "create_wallet" },
+            { text: "Import", callback_data: "imort_wallet" },
             { text: "Your Wallets", callback_data: "yourwallets" },
             { text: "Config", callback_data: "configwallets" },
+            { text: "Balance", callback_data: "balance" },
           ],
         ],
       }),
@@ -1126,33 +1130,21 @@ bot.on("callback_query", (callbackQuery) => {
     bot.sendMessage(chatId, "Select target chain:", opts);
     //bot.editMessageText("Select target chain:", opts);
   } else if (data === "yourwallets") {
-    const addresses = walletAddresses
-      .map((wallet) => wallet.address)
-      .join(", ");
+    const walletButtons = walletAddresses.map((wallet) => ({
+      text: wallet.address,
+      callback_data: `wallet_address:${wallet.address}`,
+    }));
+  
     const opts = {
       chat_id: chatId,
-      message_id: messageId,
-    };
-    bot.sendMessage(chatId, `Your Wallet Addresses:\n${addresses}`, opts);
-  } else if (
-    data === "eth" ||
-    data === "btc" ||
-    data === "matic" ||
-    data === "arb"
-  ) {
-    const opts = {
-      chat_id: chatId,
-      message_id: messageId,
       reply_markup: JSON.stringify({
-        inline_keyboard: [
-          [{ text: "Create Wallet", callback_data: "create_wallet" }],
-        ],
+        inline_keyboard: [walletButtons],
       }),
     };
-
-    bot.sendMessage(chatId, "Add a wallet", opts);
+  
+    bot.sendMessage(chatId, "Your Wallets:", opts);
   } else if (data === "create_wallet") {
-    if (walletAddresses.length === 3) {
+    if (walletAddresses.length >= 3) {
       // If the maximum limit of addresses is reached
       bot.sendMessage(
         chatId,
@@ -1171,7 +1163,19 @@ bot.on("callback_query", (callbackQuery) => {
     const message = `Private Key: ${privateKey}\n\nMnemonic: ${mnemonic}\n\nAddress: ${address}\n\n**Please make sure to save the mnemonic in a secure location**`;
     //bot.sendMessage(chatId, "wallet created");
     bot.sendMessage(chatId, message);
-  } else if (data === "channels") {
+  } else if (data === "eth" || data === "btc") {
+    const opts = {
+      chat_id: chatId,
+      message_id: messageId,
+      reply_markup: JSON.stringify({
+        inline_keyboard: [
+          [{ text: "Create Wallet", callback_data: "create_wallet" }],
+        ],
+      }),
+    };
+
+    bot.sendMessage(chatId, "Add a wallet", opts);
+  }  else if (data === "channels") {
     const opts = {
       chat_id: chatId,
       message_id: messageId,
@@ -1275,7 +1279,14 @@ bot.on("callback_query", (callbackQuery) => {
       message_id: messageId,
       reply_markup: JSON.stringify({
         inline_keyboard: [
-          [{ text: `Auto Buy: ${globalSettings.autoBuy ? "Enabled" : "Disabled"}`, callback_data: "toggle_autobuy" }],
+          [
+            {
+              text: `Auto Buy: ${
+                globalSettings.autoBuy ? "Enabled" : "Disabled"
+              }`,
+              callback_data: "toggle_autobuy",
+            },
+          ],
           [{ text: "Max MC", callback_data: "set_maxmc" }],
           [{ text: "Min Liquidity", callback_data: "setminliquidity" }],
           [{ text: "Max Liquidity", callback_data: "setmaxliquidity" }],
@@ -1287,12 +1298,13 @@ bot.on("callback_query", (callbackQuery) => {
     };
 
     bot.sendMessage(chatId, "Buy Settings", opts);
-  }  else if (data === "toggle_autobuy") {
+  } else if (data === "toggle_autobuy") {
     // Toggle the Auto Buy setting
     globalSettings.autoBuy = !globalSettings.autoBuy;
   } else if (data === "set_maxmc") {
     // Prompt the user to send the value of Max MC
-    bot.sendMessage(chatId, "Please enter the value for Max MC:")
+    bot
+      .sendMessage(chatId, "Please enter the value for Max MC:")
       .catch((error) => console.error("Error sending message:", error));
 
     // Update the global setting when the user sends the value
@@ -1304,12 +1316,14 @@ bot.on("callback_query", (callbackQuery) => {
       globalSettings.maxMC = maxMCValue;
 
       // Send a confirmation message
-      bot.sendMessage(chatId, `Max MC set to: ${maxMCValue}`)
+      bot
+        .sendMessage(chatId, `Max MC set to: ${maxMCValue}`)
         .catch((error) => console.error("Error sending message:", error));
     });
   } else if (data === "setminliquidity") {
     // Prompt the user to send the value of Max MC
-    bot.sendMessage(chatId, "Please enter the value for Min Liquidity:")
+    bot
+      .sendMessage(chatId, "Please enter the value for Min Liquidity:")
       .catch((error) => console.error("Error sending message:", error));
 
     // Update the global setting when the user sends the value
@@ -1321,12 +1335,14 @@ bot.on("callback_query", (callbackQuery) => {
       globalSettings.minLiquidity = minLiquidity;
 
       // Send a confirmation message
-      bot.sendMessage(chatId, `Min Liquidity set to: ${minLiquidity}`)
+      bot
+        .sendMessage(chatId, `Min Liquidity set to: ${minLiquidity}`)
         .catch((error) => console.error("Error sending message:", error));
     });
   } else if (data === "setmaxliquidity") {
     // Prompt the user to send the value of Max MC
-    bot.sendMessage(chatId, "Please enter the value for Max Liquidity:")
+    bot
+      .sendMessage(chatId, "Please enter the value for Max Liquidity:")
       .catch((error) => console.error("Error sending message:", error));
 
     // Update the global setting when the user sends the value
@@ -1338,12 +1354,14 @@ bot.on("callback_query", (callbackQuery) => {
       globalSettings.maxLiquidity = maxLiquidity;
 
       // Send a confirmation message
-      bot.sendMessage(chatId, `Max Liquidity set to: ${maxLiquidity}`)
+      bot
+        .sendMessage(chatId, `Max Liquidity set to: ${maxLiquidity}`)
         .catch((error) => console.error("Error sending message:", error));
     });
   } else if (data === "setmaxbuytax") {
     // Prompt the user to send the value of Max MC
-    bot.sendMessage(chatId, "Please enter the value for Max Buy Tax :")
+    bot
+      .sendMessage(chatId, "Please enter the value for Max Buy Tax :")
       .catch((error) => console.error("Error sending message:", error));
 
     // Update the global setting when the user sends the value
@@ -1355,12 +1373,14 @@ bot.on("callback_query", (callbackQuery) => {
       globalSettings.maxBuytax = maxBuytax;
 
       // Send a confirmation message
-      bot.sendMessage(chatId, `Max Buy Tax set to: ${maxBuytax}`)
+      bot
+        .sendMessage(chatId, `Max Buy Tax set to: ${maxBuytax}`)
         .catch((error) => console.error("Error sending message:", error));
     });
   } else if (data === "setmaxselltax") {
     // Prompt the user to send the value of Max MC
-    bot.sendMessage(chatId, "Please enter the value for Max Sell Tax :")
+    bot
+      .sendMessage(chatId, "Please enter the value for Max Sell Tax :")
       .catch((error) => console.error("Error sending message:", error));
 
     // Update the global setting when the user sends the value
@@ -1372,12 +1392,14 @@ bot.on("callback_query", (callbackQuery) => {
       globalSettings.maxSelltax = maxSelltax;
 
       // Send a confirmation message
-      bot.sendMessage(chatId, `Max Sell Tax set to: ${maxSelltax}`)
+      bot
+        .sendMessage(chatId, `Max Sell Tax set to: ${maxSelltax}`)
         .catch((error) => console.error("Error sending message:", error));
     });
   } else if (data === "setbuygasprice") {
     // Prompt the user to send the value of Max MC
-    bot.sendMessage(chatId, "Please enter the value for Max Buy Gas Price :")
+    bot
+      .sendMessage(chatId, "Please enter the value for Max Buy Gas Price :")
       .catch((error) => console.error("Error sending message:", error));
 
     // Update the global setting when the user sends the value
@@ -1389,7 +1411,8 @@ bot.on("callback_query", (callbackQuery) => {
       globalSettings.buygasprice = buygasprice;
 
       // Send a confirmation message
-      bot.sendMessage(chatId, `Max Buy Gas Price set to: ${buygasprice}`)
+      bot
+        .sendMessage(chatId, `Max Buy Gas Price set to: ${buygasprice}`)
         .catch((error) => console.error("Error sending message:", error));
     });
   } else if (data === "sellsettings") {
@@ -1398,7 +1421,14 @@ bot.on("callback_query", (callbackQuery) => {
       message_id: messageId,
       reply_markup: JSON.stringify({
         inline_keyboard: [
-          [{ text: `Auto Sell: ${globalSettings.autoSell ? "Enabled" : "Disabled"}`, callback_data: "toggle_autosell" }],
+          [
+            {
+              text: `Auto Sell: ${
+                globalSettings.autoSell ? "Enabled" : "Disabled"
+              }`,
+              callback_data: "toggle_autosell",
+            },
+          ],
           [{ text: "Gas Price", callback_data: "setsellgasprice" }],
           [{ text: "Sell-Hi", callback_data: "setsellhi" }],
           [{ text: "Sell Low", callback_data: "setselllow" }],
@@ -1413,7 +1443,8 @@ bot.on("callback_query", (callbackQuery) => {
     globalSettings.autoSell = !globalSettings.autoSell;
   } else if (data === "setsellhi") {
     // Prompt the user to send the value of Max MC
-    bot.sendMessage(chatId, "Please enter the value for Sell High :")
+    bot
+      .sendMessage(chatId, "Please enter the value for Sell High :")
       .catch((error) => console.error("Error sending message:", error));
 
     // Update the global setting when the user sends the value
@@ -1425,12 +1456,14 @@ bot.on("callback_query", (callbackQuery) => {
       globalSettings.SellHigh = SellHigh;
 
       // Send a confirmation message
-      bot.sendMessage(chatId, `Sell High set to: ${SellHigh}`)
+      bot
+        .sendMessage(chatId, `Sell High set to: ${SellHigh}`)
         .catch((error) => console.error("Error sending message:", error));
     });
   } else if (data === "setselllow") {
     // Prompt the user to send the value of Max MC
-    bot.sendMessage(chatId, "Please enter the value for Sell Low :")
+    bot
+      .sendMessage(chatId, "Please enter the value for Sell Low :")
       .catch((error) => console.error("Error sending message:", error));
 
     // Update the global setting when the user sends the value
@@ -1442,12 +1475,14 @@ bot.on("callback_query", (callbackQuery) => {
       globalSettings.SellLow = SellLow;
 
       // Send a confirmation message
-      bot.sendMessage(chatId, `Sell Low set to: ${SellLow}`)
+      bot
+        .sendMessage(chatId, `Sell Low set to: ${SellLow}`)
         .catch((error) => console.error("Error sending message:", error));
     });
   } else if (data === "setsellhiamount") {
     // Prompt the user to send the value of Max MC
-    bot.sendMessage(chatId, "Please enter the value for Sell High Amount :")
+    bot
+      .sendMessage(chatId, "Please enter the value for Sell High Amount :")
       .catch((error) => console.error("Error sending message:", error));
 
     // Update the global setting when the user sends the value
@@ -1459,12 +1494,14 @@ bot.on("callback_query", (callbackQuery) => {
       globalSettings.SellHighAmount = SellHighAmount;
 
       // Send a confirmation message
-      bot.sendMessage(chatId, `Sell High Amounto set to: ${SellHighAmount}`)
+      bot
+        .sendMessage(chatId, `Sell High Amounto set to: ${SellHighAmount}`)
         .catch((error) => console.error("Error sending message:", error));
     });
   } else if (data === "setselllowamount") {
     // Prompt the user to send the value of Max MC
-    bot.sendMessage(chatId, "Please enter the value for Sell Low Amount :")
+    bot
+      .sendMessage(chatId, "Please enter the value for Sell Low Amount :")
       .catch((error) => console.error("Error sending message:", error));
 
     // Update the global setting when the user sends the value
@@ -1476,12 +1513,14 @@ bot.on("callback_query", (callbackQuery) => {
       globalSettings.SellLowAmount = SellLowAmount;
 
       // Send a confirmation message
-      bot.sendMessage(chatId, `Sell Low Amounto set to: ${SellLowAmount}`)
+      bot
+        .sendMessage(chatId, `Sell Low Amounto set to: ${SellLowAmount}`)
         .catch((error) => console.error("Error sending message:", error));
     });
-  }  else if (data === "setsellgasprice") {
+  } else if (data === "setsellgasprice") {
     // Prompt the user to send the value of Max MC
-    bot.sendMessage(chatId, "Please enter the value for Max Sell Gas Price :")
+    bot
+      .sendMessage(chatId, "Please enter the value for Max Sell Gas Price :")
       .catch((error) => console.error("Error sending message:", error));
 
     // Update the global setting when the user sends the value
@@ -1493,7 +1532,8 @@ bot.on("callback_query", (callbackQuery) => {
       globalSettings.sellgasprice = sellgasprice;
 
       // Send a confirmation message
-      bot.sendMessage(chatId, `Max Sell Gas Price set to: ${sellgasprice}`)
+      bot
+        .sendMessage(chatId, `Max Sell Gas Price set to: ${sellgasprice}`)
         .catch((error) => console.error("Error sending message:", error));
     });
   } else if (data === "approvesettings") {
@@ -1502,7 +1542,14 @@ bot.on("callback_query", (callbackQuery) => {
       message_id: messageId,
       reply_markup: JSON.stringify({
         inline_keyboard: [
-          [{ text: `Auto Approve: ${globalSettings.autoapprove ? "Enabled" : "Disabled"}`, callback_data: "toggle_autoapprove" }],
+          [
+            {
+              text: `Auto Approve: ${
+                globalSettings.autoapprove ? "Enabled" : "Disabled"
+              }`,
+              callback_data: "toggle_autoapprove",
+            },
+          ],
           [{ text: "Gas Price", callback_data: "setapprovegasprice" }],
         ],
       }),
@@ -1512,9 +1559,10 @@ bot.on("callback_query", (callbackQuery) => {
   } else if (data === "toggle_autoapprove") {
     // Toggle the Auto Buy setting
     globalSettings.autoapprove = !globalSettings.autoapprove;
-  }  else if (data === "setapprovegasprice") {
+  } else if (data === "setapprovegasprice") {
     // Prompt the user to send the value of Max MC
-    bot.sendMessage(chatId, "Please enter the value for Max Approve Gas Price :")
+    bot
+      .sendMessage(chatId, "Please enter the value for Max Approve Gas Price :")
       .catch((error) => console.error("Error sending message:", error));
 
     // Update the global setting when the user sends the value
@@ -1526,29 +1574,77 @@ bot.on("callback_query", (callbackQuery) => {
       globalSettings.approvegasprice = approvegasprice;
 
       // Send a confirmation message
-      bot.sendMessage(chatId, `Max Approve Price set to: ${approvegasprice}`)
+      bot
+        .sendMessage(chatId, `Max Approve Price set to: ${approvegasprice}`)
         .catch((error) => console.error("Error sending message:", error));
     });
-  } 
-});
+  } else if (data === "buyxtoken") {
+    // Prompt the user to send the value of Max MC
+    bot
+      .sendMessage(chatId, "Please enter the amount of eth :")
+      .catch((error) => console.error("Error sending message:", error));
 
-//shows currenies to check price
-bot.onText(/\/price/, (msg) => {
-  const opts = {
-    reply_markup: JSON.stringify({
-      inline_keyboard: [
-        [{ text: "ETH", callback_data: "eth" }],
-        [{ text: "BSC", callback_data: "bsc" }],
-        [{ text: "ARB", callback_data: "arb" }],
-        [{ text: "MATIC", callback_data: "matic" }],
-      ],
-    }),
-  };
-  bot.sendMessage(msg.chat.id, "Choose currency:", opts);
-});
+    // Update the global setting when the user sends the value
+    bot.once("message", async (message) => {
+      const amount = message.text;
+      // Perform validation on the value if needed
 
-// Define an object to store the channel settings
-const channelSettings = {};
+      // Send a confirmation message
+      bot.sendMessage(chatId, `will buy for ${amount} eth`);
+    });
+  } else if (callbackData === "togglebuysellbtn") {
+    toggleBuySell = !toggleBuySell;
+
+    // Resend the message with the toggled buttons
+    const chatId = query.message.chat.id;
+    const message = query.message;
+
+    let buttons = [
+      [{ text: "Buy 0.1", callback_data: "buy_0.1" }],
+      [{ text: "Buy 0.5", callback_data: "buy_0.5" }],
+      [{ text: "Buy 0.05", callback_data: "buy_0.05" }],
+      [{ text: "Buy X", callback_data: "buyxtoken" }],
+    ];
+
+    if (toggleBuySell) {
+      buttons = [
+        [{ text: "Sell 0.1", callback_data: "sell_0.1" }],
+        [{ text: "Sell 0.5", callback_data: "sell_0.5" }],
+        [{ text: "Sell 0.05", callback_data: "sell_0.05" }],
+        [{ text: "Sell X", callback_data: "sellxtoken" }],
+      ];
+    }
+
+    const opts = {
+      reply_markup: JSON.stringify({
+        inline_keyboard: [
+          [{ text: "Track", callback_data: "track" }],
+          [{ text: "BSC", callback_data: "togglecontractchain" }],
+          [{ text: "Main", callback_data: "activewallet" }],
+          [{ text: "Buy<->Sell", callback_data: "togglebuysellbtn" }],
+          ...buttons,
+        ],
+      }),
+    };
+
+    bot.sendMessage(chatId, message.text, opts);
+  } else if (callbackData === "copytrade") {
+    const chatId = query.message.chat.id;
+
+    const opts = {
+      chat_id: chatId,
+      message_id: messageId,
+      reply_markup: JSON.stringify({
+        inline_keyboard: [
+          [{ text: `OFF`, callback_data: "toggle_copytrade" }],
+          [{ text: "Add a wallet", callback_data: "addcopytradewallet" }],
+        ],
+      }),
+    };
+
+    bot.sendMessage(chatId, opts);
+  }
+});
 
 // Function to get contract information
 async function getContractInfo(contractAddress) {
@@ -1632,6 +1728,23 @@ async function getContractInfo(contractAddress) {
   }
 }
 
+//shows currenies to check price
+bot.onText(/\/price/, (msg) => {
+  const opts = {
+    reply_markup: JSON.stringify({
+      inline_keyboard: [
+        [{ text: "ETH", callback_data: "eth" }],
+        [{ text: "BSC", callback_data: "bsc" }],
+        [{ text: "ARB", callback_data: "arb" }],
+        [{ text: "MATIC", callback_data: "matic" }],
+      ],
+    }),
+  };
+  bot.sendMessage(msg.chat.id, "Choose currency:", opts);
+});
+
+// Define an object to store the channel settings
+const channelSettings = {};
 // Function to estimate gas fees for buying or selling on Uniswap
 async function estimateGasFees(contract, action) {
   try {
@@ -1688,7 +1801,7 @@ async function estimateGasFees(contract, action) {
   }
 }
 
-// Handle user messages
+// Handles when contract address is pasted
 bot.on("message", async (message) => {
   const chatId = message.chat.id;
   const text = message.text;
@@ -1701,22 +1814,36 @@ bot.on("message", async (message) => {
     const contractInfo = await getContractInfo(contractAddress);
 
     if (contractInfo) {
-      const replyMessage = `Contract Information:\n\nName: ${contractInfo.name}\nSymbol: ${contractInfo.symbol}\nDecimals: ${contractInfo.decimals}\nTotal Supply: ${contractInfo.totalSupply}\nLP: ${contractInfo.uniswapV2PairAddress}\nChain: ${contractInfo.chain}\nBalance in Wallet: ${contractInfo.balance}\nGas Price: ${contractInfo.gasPrice}\nEstimated Buy Gas Fees: ${contractInfo.estimatedBuyGas}\nEstimated Sell Gas Fees: ${contractInfo.estimatedSellGas}\nMarket cap: ${contractInfo.marketCap}\nLiquidity: ${contractInfo.liquidity}`;
+      let buttons = [
+        [{ text: "Buy 0.1", callback_data: "buy_0.1" }],
+        [{ text: "Buy 0.5", callback_data: "buy_0.5" }],
+        [{ text: "Buy 0.05", callback_data: "buy_0.05" }],
+        [{ text: "Buy X", callback_data: "buyxtoken" }],
+      ];
 
-      //bot.sendMessage(chatId, replyMessage);
-
-      // Send the message with the inline keyboard
-     // bot.sendMessage(sendMessageParams)
+      if (toggleBuySell) {
+        buttons = [
+          [{ text: "Sell 0.1", callback_data: "sell_0.1" }],
+          [{ text: "Sell 0.5", callback_data: "sell_0.5" }],
+          [{ text: "Sell 0.05", callback_data: "sell_0.05" }],
+          [{ text: "Sell X", callback_data: "sellxtoken" }],
+        ];
+      }
 
       const opts = {
         reply_markup: JSON.stringify({
           inline_keyboard: [
-            [{ text: "Buy 0.1", callback_data: "buy_0.1" }],
-            [{ text: "Buy 0.5", callback_data: "buy_0.5" }],
-            [{ text: "Buy 0.5", callback_data: "buy_0.05" }],
+            [{ text: "Track", callback_data: "track" }],
+            [{ text: "BSC", callback_data: "togglecontractchain" }],
+            [{ text: "Main", callback_data: "activewallet" }],
+            [{ text: "Buy<->Sell", callback_data: "togglebuysellbtn" }],
+            ...buttons,
           ],
         }),
       };
+
+      const replyMessage = `Contract Information:\n\nName: ${contractInfo.name}\nSymbol: ${contractInfo.symbol}\nDecimals: ${contractInfo.decimals}\nTotal Supply: ${contractInfo.totalSupply}\nLP: ${contractInfo.uniswapV2PairAddress}\nChain: ${contractInfo.chain}\nBalance in Wallet: ${contractInfo.balance}\nGas Price: ${contractInfo.gasPrice}\nEstimated Buy Gas Fees: ${contractInfo.estimatedBuyGas}\nEstimated Sell Gas Fees: ${contractInfo.estimatedSellGas}\nMarket cap: ${contractInfo.marketCap}\nLiquidity: ${contractInfo.liquidity}`;
+
       bot.sendMessage(chatId, replyMessage, opts);
     } else {
       bot.sendMessage(chatId, "Failed to retrieve contract information.");
