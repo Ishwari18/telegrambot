@@ -1151,11 +1151,19 @@ bot.on("callback_query", (callbackQuery) => {
     );
   
     if (walletIndex !== -1) {
+      const wallet = walletAddresses[walletIndex];
+      const isWalletEnabled = wallet.enabled;
+  
+      const enableButtonText = isWalletEnabled ? "Disable" : "Enable";
+      const enableButtonCallback = isWalletEnabled
+        ? `disable_wallet:${walletAddress}`
+        : `enable_wallet:${walletAddress}`;
+  
       const settingsButtons = [
-        { text: "Change Name", callback_data: `change_name:${walletAddress}` },
-        { text: "Change Password", callback_data: `change_password:${walletAddress}` },
-        { text: "Export Private Key", callback_data: `export_private_key:${walletAddress}` },
-        { text: "Delete Wallet", callback_data: `delete_wallet:${walletAddress}` },
+        { text: enableButtonText, callback_data: enableButtonCallback },
+        { text: "Rename", callback_data: `change_name:${walletAddress}` },
+        { text: "Send ETH", callback_data: `change_password:${walletAddress}` },
+        { text: "Send BNB", callback_data: `export_private_key:${walletAddress}` },
         { text: "Back", callback_data: "yourwallets" },
       ];
   
@@ -1188,6 +1196,39 @@ bot.on("callback_query", (callbackQuery) => {
     const message = `Private Key: ${privateKey}\n\nMnemonic: ${mnemonic}\n\nAddress: ${address}\n\n**Please make sure to save the mnemonic in a secure location**`;
     //bot.sendMessage(chatId, "wallet created");
     bot.sendMessage(chatId, message);
+  } else  if (data.startsWith("enable_wallet") || data.startsWith("disable_wallet")) {
+    const walletAddress = data.split(":")[1];
+    const walletIndex = walletAddresses.findIndex(
+      (wallet) => wallet.address === walletAddress
+    );
+
+    if (walletIndex !== -1) {
+      const wallet = walletAddresses[walletIndex];
+      wallet.enabled = !wallet.enabled;
+
+      const enableButtonText = wallet.enabled ? "Disable" : "Enable";
+      const enableButtonCallback = wallet.enabled
+        ? `disable_wallet:${walletAddress}`
+        : `enable_wallet:${walletAddress}`;
+
+      const settingsButtons = [
+        { text: enableButtonText, callback_data: enableButtonCallback },
+        { text: "Rename", callback_data: `change_name:${walletAddress}` },
+        { text: "Send ETH", callback_data: `change_password:${walletAddress}` },
+        { text: "Send BNB", callback_data: `export_private_key:${walletAddress}` },
+        { text: "Back", callback_data: "yourwallets" },
+      ];
+
+      const opts = {
+        chat_id: chatId,
+        message_id: messageId,
+        reply_markup: JSON.stringify({
+          inline_keyboard: [settingsButtons],
+        }),
+      };
+
+      bot.sendMessage(chatId, "Wallet Settings:", opts);
+    }
   } else if (data === "eth" || data === "btc") {
     const opts = {
       chat_id: chatId,
