@@ -1118,7 +1118,7 @@ bot.on("callback_query", (callbackQuery) => {
         inline_keyboard: [
           [
             { text: "Create", callback_data: "create_wallet" },
-            { text: "Import", callback_data: "imort_wallet" },
+            { text: "Import", callback_data: "import_wallet" },
             { text: "Your Wallets", callback_data: "yourwallets" },
             { text: "Config", callback_data: "configwallets" },
             { text: "Balance", callback_data: "balance" },
@@ -1129,7 +1129,41 @@ bot.on("callback_query", (callbackQuery) => {
 
     bot.sendMessage(chatId, "Select target chain:", opts);
     //bot.editMessageText("Select target chain:", opts);
-  } else if (data === "yourwallets") {
+  } else if (data === "import_wallet") {
+    const opts = {
+      chat_id: chatId,
+      message_id: messageId,
+    };
+  
+    bot.sendMessage(chatId, "Please enter the private key to import the wallet:", opts);
+  
+    // Register a new text message handler to capture the private key
+    bot.on("text", (message) => {
+      const privateKey = message.text;
+  
+      try {
+        if (!privateKey) {
+          throw new Error("Invalid private key");
+        }
+  
+        const wallet = new ethers.Wallet(privateKey, provider);
+        const address = wallet.address;
+  
+        const newWallet = { chatId, address }; // Create a new wallet object
+        walletAddresses.push(newWallet);
+  
+        // Send a success message with the imported wallet address
+        bot.sendMessage(chatId, `Wallet imported successfully. Address: ${address}`);
+  
+      } catch (error) {
+        // Send an error message if importing the wallet fails
+        bot.sendMessage(chatId, "Error importing wallet. Please make sure to provide a valid private key.");
+      }
+  
+      // Remove the text message handler to prevent capturing other messages
+      bot.removeEvent("text");
+    });
+  }else if (data === "yourwallets") {
     const walletButtons = walletAddresses.map((wallet, index) => ({
       text: walletNames[index],
       callback_data: `wallet_address:${wallet.address}`,
@@ -1164,7 +1198,7 @@ bot.on("callback_query", (callbackQuery) => {
         { text: "Rename", callback_data: `change_name:${walletAddress}` },
         { text: "Send ETH", callback_data: `change_password:${walletAddress}` },
         { text: "Send BNB", callback_data: `export_private_key:${walletAddress}` },
-        { text: "Back", callback_data: "yourwallets" },
+        { text: "Return", callback_data: "yourwallets" },
       ];
   
       const opts = {
@@ -1176,6 +1210,37 @@ bot.on("callback_query", (callbackQuery) => {
   
       bot.sendMessage(chatId, "Wallet Settings:", opts);
     }
+  }else if (data.startsWith("change_name")) {
+    const walletAddress = data.split(":")[1];
+    const walletIndex = walletAddresses.findIndex(
+      (wallet) => wallet.address === walletAddress
+    );
+
+    if (walletIndex !== -1) {
+      const wallet = walletAddresses[walletIndex];
+
+      const opts = {
+        chat_id: chatId,
+        message_id: messageId,
+      };
+
+      // Prompt the user to enter a new name for the wallet
+      bot.sendMessage(chatId, "Please enter the new name for the wallet:", opts);
+
+      // Register a new text message handler to capture the new name
+      bot.on("text", (message) => {
+        const newName = message.text;
+
+        // Save the new name in the walletNames array at the respective index
+        walletNames[walletIndex] = newName;
+
+        // Send a confirmation message
+        bot.sendMessage(chatId, `Wallet name has been updated to: ${newName}`);
+
+        // Remove the text message handler to prevent capturing other messages
+        bot.removeEvent("text");
+      });
+    } 
   } else if (data === "create_wallet") {
     if (walletAddresses.length >= 3) {
       // If the maximum limit of addresses is reached
