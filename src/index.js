@@ -1044,7 +1044,7 @@ const pairABI = [
 const token = "6205714432:AAEEAa_wM04xjfZUk8x56L3UxA7gul6ON_A";
 const bot = new telegramBot(token, { polling: true });
 const provider = new ethers.providers.JsonRpcProvider(
-  "https://mainnet.infura.io/v3/fb42577745e24d429d936f65b43cca0b"
+  "https://sepolia.infura.io/v3/fb42577745e24d429d936f65b43cca0b"
 );
 //const provider = ethers.getDefaultProvider();
 let walletAddresses = [];
@@ -1130,7 +1130,37 @@ bot.on("callback_query", (callbackQuery) => {
 
     bot.sendMessage(chatId, "Select target chain:", opts);
     //bot.editMessageText("Select target chain:", opts);
-  } else if (data === "import_wallet") {
+  }else if (data === "balance") {
+    if (walletAddresses.length === 0) {
+      bot.sendMessage(chatId, "No wallets connected.");
+    } else {
+      const balancePromises = walletAddresses.map(async (wallet) => {
+        const balance = await provider.getBalance(wallet.address);
+        const balanceEth = ethers.utils.formatEther(balance);
+        const walletNameIndex = walletAddresses.findIndex((w) => w.address === wallet.address);
+        const walletName = walletNames[walletNameIndex];
+        return { walletName, balanceEth };
+      });
+  
+      Promise.all(balancePromises)
+        .then((walletBalances) => {
+          const balanceMessages = walletBalances.map((wb) => `${wb.walletName}: ${wb.balanceEth} ETH`);
+  
+          const balanceMessage = balanceMessages.join("\n");
+  
+          const opts = {
+            chat_id: chatId,
+            message_id: messageId,
+          };
+  
+          bot.sendMessage(chatId, `Wallet Balances:\n\n${balanceMessage}`, opts);
+        })
+        .catch((error) => {
+          console.error(error);
+          bot.sendMessage(chatId, "Failed to retrieve wallet balances.");
+        });
+    }
+  }else if (data === "import_wallet") {
     const opts = {
       chat_id: chatId,
       message_id: messageId,
