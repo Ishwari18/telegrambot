@@ -1165,27 +1165,27 @@ bot.on("callback_query", (callbackQuery) => {
       chat_id: chatId,
       message_id: messageId,
     };
-    
+  
     bot.sendMessage(chatId, "Please enter the private key to import the wallet:", opts);
   
     // Register a new message handler to capture the private key
     bot.once("message", async (message) => {
       const privateKey = message.text;
-
+  
       try {
         if (!privateKey) {
           throw new Error("Invalid private key");
         }
-
+  
         const wallet = new ethers.Wallet(privateKey);
         const address = wallet.address;
-
-        const newWallet = { chatId, address }; // Create a new wallet object
+  
+        const newWallet = { address, privateKey }; // Create a new wallet object
         walletAddresses.push(newWallet);
-
+  
         // Send a success message with the imported wallet address
         bot.sendMessage(chatId, `Wallet imported successfully. Address: ${address}`);
-
+  
       } catch (error) {
         // Send an error message if importing the wallet fails
         bot.sendMessage(chatId, "Error importing wallet. Please make sure to provide a valid private key.");
@@ -1193,7 +1193,7 @@ bot.on("callback_query", (callbackQuery) => {
     });
   }else if (data === "yourwallets") {
     const walletButtons = walletAddresses.map((wallet, index) => ({
-      text: walletNames[index],
+      text: walletNames[index] || wallet.address,
       callback_data: `wallet_address:${wallet.address}`,
     }));
   
@@ -1205,7 +1205,6 @@ bot.on("callback_query", (callbackQuery) => {
     };
   
     bot.sendMessage(chatId, "Your Wallets:", opts);
-  
   }else if (data.includes("wallet_address:")) {
     const walletAddress = data.split(":")[1];
     const walletIndex = walletAddresses.findIndex(
@@ -1239,70 +1238,7 @@ bot.on("callback_query", (callbackQuery) => {
   
       bot.sendMessage(chatId, "Wallet Settings:", opts);
     }
-  } else if (data.startsWith("change_name")) {
-    const walletAddress = data.split(":")[1];
-    const walletIndex = walletAddresses.findIndex(
-      (wallet) => wallet.address === walletAddress
-    );
-
-    if (walletIndex !== -1) {
-      const wallet = walletAddresses[walletIndex];
-
-      const opts = {
-        chat_id: chatId,
-        message_id: messageId,
-      };
-
-      // Prompt the user to enter a new name for the wallet
-      bot.sendMessage(chatId, "Please enter the new name for the wallet:", opts);
-
-      // Register a new message handler to capture the new name
-      bot.once("message", async (message) => {
-        const newName = message.text;
-
-        // Update the name in the walletNames array
-        walletNames[walletIndex] = newName;
-
-        // Send a success message with the updated wallet name
-        bot.sendMessage(chatId, `Wallet name has been updated to: ${newName}`);
-      });
-    } 
-  }else if (data.startsWith("sendeth")) {
-    const walletAddress = data.split(":")[1];
-    const walletIndex = walletAddresses.findIndex(
-      (wallet) => wallet.address === walletAddress
-    );
-
-    if (walletIndex !== -1) {
-      const wallet = walletAddresses[walletIndex];
-
-      const opts = {
-        chat_id: chatId,
-        message_id: messageId,
-      };
-
-      // Prompt the user to enter a new name for the wallet
-      bot.sendMessage(chatId, "Please enter the amount:", opts);
-
-      // Register a new message handler to capture the new name
-      bot.once("message", async (message) => {
-        const amount = message.text;
-        const signer = wallet.connect(provider);
-        const tx = await signer.sendTransaction({
-          to: recipient,
-          value: ethers.utils.parseEther(amount),
-          gasLimit: 21000,
-        });
-        await tx.wait();
-
-        // Update the name in the walletNames array
-        walletNames[walletIndex] = amount;
-
-        // Send a success message with the updated wallet name
-        bot.sendMessage(chatId, `${amount} eth sent`);
-      });
-    } 
-  }else if (data.startsWith("balance")) {
+  }else if (data.startsWith("change_name")) {
     const walletAddress = data.split(":")[1];
     const walletIndex = walletAddresses.findIndex(
       (wallet) => wallet.address === walletAddress
@@ -1310,7 +1246,93 @@ bot.on("callback_query", (callbackQuery) => {
   
     if (walletIndex !== -1) {
       const wallet = walletAddresses[walletIndex];
-      provider.getBalance(wallet.address).then((balance) => {
+  
+      const opts = {
+        chat_id: chatId,
+        message_id: messageId,
+      };
+  
+      // Prompt the user to enter a new name for the wallet
+      bot.sendMessage(chatId, "Please enter the new name for the wallet:", opts);
+  
+      // Register a new message handler to capture the new name
+      bot.once("message", async (message) => {
+        const newName = message.text;
+  
+        // Update the name in the walletNames array
+        walletNames[walletIndex] = newName;
+  
+        // Send a success message with the updated wallet name
+        bot.sendMessage(chatId, `Wallet name has been updated to: ${newName}`);
+      });
+    }
+  }else if (data.startsWith("sendeth")) {
+    const walletAddress = data.split(":")[1];
+    const walletIndex = walletAddresses.findIndex(
+      (wallet) => wallet.address === walletAddress
+    );
+  
+    if (walletIndex !== -1) {
+      const selectedWallet = walletAddresses[walletIndex];
+  
+      const opts = {
+        chat_id: chatId,
+        message_id: messageId,
+      };
+  
+      // Prompt the user to enter the amount
+      bot.sendMessage(chatId, "Please enter the amount:", opts);
+  
+      // Register a new message handler to capture the amount
+      bot.once("message", async (message) => {
+        if (message.chat.id === chatId) {
+          const amount = message.text;
+  
+          // Prompt the user to enter the recipient address
+          bot.sendMessage(chatId, "Please enter the recipient address:");
+  
+          // Register a new message handler to capture the recipient address
+          bot.once("message", async (message) => {
+            if (message.chat.id === chatId) {
+              const recipient = message.text;
+  
+              // Prepare the transaction details
+              const txDetails = {
+                to: recipient,
+                value: ethers.utils.parseEther(amount),
+                gasLimit: 21000,
+              };
+  
+              try {
+                // Generate the signer from the private key
+                const signer = new ethers.Wallet(selectedWallet.privateKey).connect(provider);
+  
+                // Sign and send the transaction
+                const tx = await signer.sendTransaction(txDetails);
+                await tx.wait();
+  
+                // Send a success message
+                bot.sendMessage(chatId, `${amount} ETH sent`);
+              } catch (error) {
+                console.error(error);
+                bot.sendMessage(chatId, "Transaction failed.");
+              }
+            }
+          });
+        }
+      });
+    }
+  }
+   else if (data.startsWith("balance")) {
+    const walletAddress = data.split(":")[1];
+    const walletIndex = walletAddresses.findIndex(
+      (wallet) => wallet.address === walletAddress
+    );
+  
+    if (walletIndex !== -1) {
+      const wallet = walletAddresses[walletIndex];
+      const address = wallet.address;
+      provider.getBalance(address).then((balance) => {
         const balanceEth = ethers.utils.formatEther(balance);
   
         const opts = {
@@ -1326,7 +1348,7 @@ bot.on("callback_query", (callbackQuery) => {
         bot.sendMessage(chatId, "Failed to retrieve wallet balance.");
       });
     }
-  } else if (data === "create_wallet") {
+  }else if (data === "create_wallet") {
     if (walletAddresses.length >= 3) {
       // If the maximum limit of addresses is reached
       bot.sendMessage(
@@ -1335,18 +1357,19 @@ bot.on("callback_query", (callbackQuery) => {
       );
       return;
     }
+  
     const wallet = ethers.Wallet.createRandom();
     const privateKey = wallet.privateKey;
     const mnemonic = wallet.mnemonic.phrase;
     const address = wallet.address;
-
-    const newWallet = { chatId, address }; // Create a new wallet object
+  
+    const newWallet = { address, privateKey }; // Create a new wallet object with enabled status
     walletAddresses.push(newWallet);
+  
     // Send private key, mnemonic, and address to the user
     const message = `Private Key: ${privateKey}\n\nMnemonic: ${mnemonic}\n\nAddress: ${address}\n\n**Please make sure to save the mnemonic in a secure location**`;
-    //bot.sendMessage(chatId, "wallet created");
     bot.sendMessage(chatId, message);
-  } else  if (data.startsWith("enable_wallet") || data.startsWith("disable_wallet")) {
+  }else  if (data.startsWith("enable_wallet") || data.startsWith("disable_wallet")) {
     const walletAddress = data.split(":")[1];
     const walletIndex = walletAddresses.findIndex(
       (wallet) => wallet.address === walletAddress
@@ -1379,19 +1402,25 @@ bot.on("callback_query", (callbackQuery) => {
 
       bot.sendMessage(chatId, "Wallet Settings:", opts);
     }
-  }else  if (callbackData === "activewallet") {
+  }else if (data === "activewallet") {
+    if (walletAddresses.length === 0) {
+      bot.sendMessage(chatId, "No wallets connected");
+      return;
+    }
+  
     activeWalletIndex = (activeWalletIndex + 1) % walletAddresses.length;
-    activeWallet = walletAddresses.length === 0 ? null : walletAddresses[activeWalletIndex].address;
-
-    const activeWalletButton = walletAddresses.length === 0 ? "None" : walletNames[activeWalletIndex];
-
+    activeWallet = walletAddresses[activeWalletIndex].address;
+    const activeWalletName = walletNames[activeWalletIndex];
+  
+    const activeWalletButton = walletAddresses.length === 1 ? "There's only one wallet connected" : activeWalletName;
+  
     const buttons = [
       [{ text: "Buy 0.1", callback_data: "buy_0.1" }],
       [{ text: "Buy 0.5", callback_data: "buy_0.5" }],
       [{ text: "Buy 0.05", callback_data: "buy_0.05" }],
       [{ text: "Buy X", callback_data: "buyxtoken" }],
     ];
-
+  
     if (toggleBuySell) {
       buttons.push(
         [{ text: "Sell 0.1", callback_data: "sell_0.1" }],
@@ -1400,7 +1429,7 @@ bot.on("callback_query", (callbackQuery) => {
         [{ text: "Sell X", callback_data: "sellxtoken" }]
       );
     }
-
+  
     const opts = {
       reply_markup: JSON.stringify({
         inline_keyboard: [
@@ -1412,9 +1441,10 @@ bot.on("callback_query", (callbackQuery) => {
         ],
       }),
     };
-
+  
     bot.sendMessage(chatId, `Active Wallet: ${activeWalletButton}`, opts);
-  }else if (data === "eth" || data === "btc") {
+  }
+  else if (data === "eth" || data === "btc") {
     const opts = {
       chat_id: chatId,
       message_id: messageId,
@@ -1465,8 +1495,7 @@ bot.on("callback_query", (callbackQuery) => {
     };
 
     bot.sendMessage(chatId, "Channel Settings:", opts);
-  }
-   else if (data === "mechannel" || data === "catchannel") {
+  }else if (data === "mechannel" || data === "catchannel") {
     const channelId = data;
     const channelSettingsExists = channelSettings.hasOwnProperty(channelId);
 
