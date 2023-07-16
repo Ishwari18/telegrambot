@@ -10,9 +10,12 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^3.0.0",
+    "@uniswap/sdk": "^3.0.3",
     "dotenv": "^16.3.1",
-    "ethers": "^5.7.2",
+    "ethers": "^6.6.3",
     "node-telegram-bot-api": "^0.61.0",
-    "nodemon": "^2.0.22"
+    "nodemon": "^2.0.22",
+    "uniswap-v2-deploy-plugin": "^0.0.4"
   }
 }

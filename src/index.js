@@ -1044,7 +1044,7 @@ const pairABI = [
 const token = "6205714432:AAEEAa_wM04xjfZUk8x56L3UxA7gul6ON_A";
 const bot = new telegramBot(token, { polling: true });
 const provider = new ethers.providers.JsonRpcProvider(
-  "https://sepolia.infura.io/v3/fb42577745e24d429d936f65b43cca0b"
+  "https://mainnet.infura.io/v3/fb42577745e24d429d936f65b43cca0b"
 );
 //const provider = ethers.getDefaultProvider();
 let walletAddresses = [];
@@ -1056,7 +1056,7 @@ let activeWallet = walletAddresses.length > 0 ? walletAddresses[activeWalletInde
 let toggleBuySell = false; // Initialize toggleBuySell to false
 // Global settings object
 let copytradewallets = [];
-let channels = ["channel1"];
+let channels = ["Channel1"];
 const globalSettings = {
   autoBuy: false, // Default state: Auto Buy is disabled
   autoSell: false,
@@ -1322,8 +1322,7 @@ bot.on("callback_query", (callbackQuery) => {
         }
       });
     }
-  }
-   else if (data.startsWith("balance")) {
+  }else if (data.startsWith("balance")) {
     const walletAddress = data.split(":")[1];
     const walletIndex = walletAddresses.findIndex(
       (wallet) => wallet.address === walletAddress
@@ -1443,8 +1442,7 @@ bot.on("callback_query", (callbackQuery) => {
     };
   
     bot.sendMessage(chatId, `Active Wallet: ${activeWalletButton}`, opts);
-  }
-  else if (data === "eth" || data === "btc") {
+  }else if (data === "eth" || data === "btc") {
     const opts = {
       chat_id: chatId,
       message_id: messageId,
@@ -1456,7 +1454,7 @@ bot.on("callback_query", (callbackQuery) => {
     };
 
     bot.sendMessage(chatId, "Add a wallet", opts);
-  }  else if (data === "channels") {
+  }else if (data === "channels") {
 
     const buttons = channels.map((channel, index) => ({
       text: channels[index],
@@ -1476,7 +1474,7 @@ bot.on("callback_query", (callbackQuery) => {
     }
 
     bot.sendMessage(chatId, message, opts);
-  } else if (data.includes("channel:")){
+  }else if (data.includes("channel:")){
     const channelName = data.split(":")[1];
 
     const settingsButtons = [
@@ -1542,7 +1540,7 @@ bot.on("callback_query", (callbackQuery) => {
       }),
     };
     bot.editMessageText("Call channel settings:", opts);
-  } else if (
+  }else if (
     data.startsWith("mechannel_setminamount") ||
     data.startsWith("catchannel_setminamount")
   ) {
@@ -1883,19 +1881,44 @@ bot.on("callback_query", (callbackQuery) => {
         .sendMessage(chatId, `Max Approve Price set to: ${approvegasprice}`)
         .catch((error) => console.error("Error sending message:", error));
     });
-  } else if (data === "buyxtoken") {
-    // Prompt the user to send the value of Max MC
-    bot
-      .sendMessage(chatId, "Please enter the amount of eth :")
-      .catch((error) => console.error("Error sending message:", error));
-
-    // Update the global setting when the user sends the value
-    bot.once("message", async (message) => {
-      const amount = message.text;
-      // Perform validation on the value if needed
-
-      // Send a confirmation message
-      bot.sendMessage(chatId, `will buy for ${amount} eth`);
+  }else if (data.startsWith("buyxtoken")) {
+    const contractAddress = data.split(":")[1];
+    const wallet = walletAddresses[activeWalletIndex];
+  
+    // Prompt the user to enter the amount of ETH
+    bot.sendMessage(chatId, "Please enter the amount of ETH to swap:").then(() => {
+      // Register a new message handler to capture the amount
+      bot.once("message", async (message) => {
+        const amount = message.text;
+  
+        // Validate the amount if needed
+  
+        try {
+          // Generate the signer from the private key
+          const signer = new ethers.Wallet(wallet.privateKey).connect(provider);
+  
+          // Perform the token swap
+          const tx = await swapTokens(contractAddress, amount, signer);
+  
+          // Send a message with the transaction hash and Etherscan link
+          const transactionHash = tx.hash;
+          const etherscanLink = `https://etherscan.io/tx/${transactionHash}`;
+          const message = `Token swap initiated!\n\nTransaction Hash: ${transactionHash}\n\nEtherscan: ${etherscanLink}`;
+          bot.sendMessage(chatId, message);
+  
+          // Wait for the transaction to be confirmed
+          const receipt = await tx.wait();
+  
+          // Send another message with the completed transaction link
+          const completedTransactionHash = receipt.transactionHash;
+          const completedEtherscanLink = `https://etherscan.io/tx/${completedTransactionHash}`;
+          const completedMessage = `Token swap completed!\n\nTransaction Hash: ${completedTransactionHash}\n\nEtherscan: ${completedEtherscanLink}`;
+          bot.sendMessage(chatId, completedMessage);
+        } catch (error) {
+          // Send an error message if the swap fails
+          bot.sendMessage(chatId, "Token swap failed. Please try again.");
+        }
+      });
     });
   } else if (callbackData === "togglebuysellbtn") {
     toggleBuySell = !toggleBuySell;
@@ -2123,7 +2146,7 @@ bot.on("message", async (message) => {
         [{ text: "Buy 0.1", callback_data: "buy_0.1" }],
         [{ text: "Buy 0.5", callback_data: "buy_0.5" }],
         [{ text: "Buy 0.05", callback_data: "buy_0.05" }],
-        [{ text: "Buy X", callback_data: "buyxtoken" }],
+        [{ text: "Buy X", callback_data: "buyxtoken:${contractAddress}" }],
       ];
 
       if (toggleBuySell) {
@@ -2131,7 +2154,7 @@ bot.on("message", async (message) => {
           [{ text: "Sell 0.1", callback_data: "sell_0.1" }],
           [{ text: "Sell 0.5", callback_data: "sell_0.5" }],
           [{ text: "Sell 0.05", callback_data: "sell_0.05" }],
-          [{ text: "Sell X", callback_data: "sellxtoken" }],
+          [{ text: "Sell X", callback_data: "sellxtoken:${contractAddress}" }],
         ];
       }
 
@@ -2247,6 +2270,53 @@ async function buyToken(contractAddress, amountInEth) {
   } catch (error) {
     console.error("Error buying token:", error);
     return false;
+  }
+}
+
+// Function to swap tokens on Uniswap
+async function swapTokens(tokenInAddress, tokenOutAddress, amountIn, wallet) {
+  try {
+    const provider = new ethers.providers.JsonRpcProvider("https://mainnet.infura.io/v3/your-infura-project-id"); // Replace with your Infura Project ID or the desired Ethereum provider URL
+    const signer = wallet.connect(provider);
+
+    const uniswapRouter = new ethers.Contract(routerAddress, uniswap.RouterAbi, signer);
+
+    // Get token instances
+    const tokenIn = new uniswap.Token(uniswap.ChainId.MAINNET, tokenInAddress, 18);
+    const tokenOut = new uniswap.Token(uniswap.ChainId.MAINNET, tokenOutAddress, 18);
+
+    // Get token pair from the tokens
+    const pair = uniswap.Fetcher.fetchPairData(tokenIn, tokenOut);
+
+    // Get the route for the swap
+    const route = new uniswap.Route([pair], tokenIn);
+
+    // Calculate the amount out based on the desired amount in
+    const amountOut = route.getAmountOut(ethers.utils.parseEther(amountIn));
+
+    // Prepare the swap transaction
+    const path = [tokenInAddress, tokenOutAddress];
+    const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // Set the deadline to 20 minutes from now
+    const amountInMin = 0; // Set the minimum acceptable amount of tokenIn
+    const amountOutMin = amountOut.toExact(); // Use the calculated amountOut as the minimum acceptable amount of tokenOut
+
+    // Approve the Router to spend the tokenIn
+    const approveTx = await tokenIn.approve(routerAddress, ethers.constants.MaxUint256);
+    await approveTx.wait();
+
+    // Swap tokens
+    const swapTx = await uniswapRouter.swapExactTokensForTokens(
+      ethers.utils.parseEther(amountIn),
+      ethers.utils.parseEther(amountOutMin),
+      path,
+      wallet.address,
+      deadline
+    );
+    await swapTx.wait();
+
+    console.log(`Swapped ${amountIn} ${tokenIn.symbol} for ${amountOutMin} ${tokenOut.symbol}`);
+  } catch (error) {
+    console.error("Failed to swap tokens:", error);
   }
 }
 
